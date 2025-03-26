@@ -45,7 +45,7 @@ if __name__ == "__main__":
     print("Correct:", len(correct_ids))
     print("Half:", len(half_ids))
     print("Wrong:", len(wrong_ids))
-        
+    print(wrong_ids[:5])        
     # with open(output_path, "w") as f:
     #     f.write(str(correct_ids))
 

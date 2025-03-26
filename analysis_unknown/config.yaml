@@ -1,11 +1,14 @@
 model:
-  base-model-path: /home/nfs05/laizj/model/models--Qwen--Qwen2.5-Math-7B/snapshots/b101308fe89651ea5ce025f25317fea6fc07e96e
+  base-model-path: /home/nfs05/laizj/model/models--Qwen--Qwen2.5-Math-7B-Instruct/snapshots/ef9926d75ab1d54532f6a30dd5e760355eb9aa4d
 inference:
+  # beam-search: 
+  #   beam-size: 5
+  #   max-tokens: 2048
   sampling-params:
-    temperature: 0.7
-    top_p: 0.75
+    temperature: 0
+    top_p: 0.95
     max_tokens: 2048
-    n: 5
+    n: 1
 data:
-  test-set-path: data/gsm8k-train-prompt.json
-  output-path: results/gsm8k-train-prompt_inference_0.7_0.75_5.json
+  test-set-path: data/synthetic_data/qwen72b-generate_template_and_code_gsm8k-train_disturbed.json
+  output-path: results/qwen7b_inference_qwen72b-generate_template_and_code_gsm8k-train_disturbed.json
