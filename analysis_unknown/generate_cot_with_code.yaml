@@ -1,0 +1,17 @@
+model:
+  model_name: qwen7b_instruct
+inference:
+  # beam-search: 
+  #   beam-size: 5
+  #   max-tokens: 2048
+  sampling-params:
+    temperature: 0.7
+    top_p: 0.9
+    max_tokens: 1536
+    n: 5
+data:
+  task: generate_cot_with_code
+  source_dataset: qwen8b-orca_20k_train-disturbed_1.0_16
+
+  test-set-path: data/process_data/
+  output-path: 

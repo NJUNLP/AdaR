@@ -1,0 +1,17 @@
+model:
+  model_name: qwen7b_instruct
+inference:
+  # beam-search: 
+  #   beam-size: 5
+  #   max-tokens: 2048
+  sampling-params:
+    temperature: 1
+    top_p: 0.9
+    max_tokens: 2048
+    n: 5
+data:
+  task: generate_dpo_pairs
+  source_dataset: qwen7b_instruct-generate_cot_with_code-qwen72b_instruct-generate_template_and_code-orca_10k_train-disturbed_1.0
+
+  test-set-path: data/process_data/
+  output-path: 

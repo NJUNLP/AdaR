@@ -7,12 +7,13 @@ requires-python = ">=3.12"
 dependencies = [
     "torch==2.6.0",
     "torchvision==0.21.0",
-    "click>=8.1.8",
-    "gpustat>=1.1.1",
-    "pysocks>=1.7.1",
     "vllm==0.8.4",
+    "flash-attn>=2.7.4.post1",
+    "flashinfer-python<0.2.3",
     "llamafactory",
     "verl",
+    "training",
+    "deepspeed>=0.16.7",
 ]
 
 [tool.uv.sources]
@@ -24,6 +25,7 @@ torchvision = [
 ]
 llamafactory = { path = "/home/nfs03/laizj/code/LLaMA-Factory" }
 verl = { path = "/home/nfs03/laizj/code/verl" }
+training = { path = "../../../../nfs03/laizj/code/util/Training" }
 
 [[tool.uv.index]]
 url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"

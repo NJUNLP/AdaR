@@ -1,0 +1,18 @@
+model:
+  model_name: qwen8b
+inference:
+  # beam-search: 
+  #   beam-size: 5
+  #   max-tokens: 2048
+  sampling-params:
+    temperature: 0
+    top_p: 0.9
+    max_tokens: 2048
+    n: 1
+data:
+  task: generate_template_and_code
+  source_dataset: orca_20k_train
+  
+
+  test-set-path: data/process_data/
+  output-path: 
