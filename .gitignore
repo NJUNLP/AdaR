@@ -182,3 +182,5 @@ cython_debug/
 !**/data/*.ipynb
 !**/data/*.sh
 !**/data/*.py
+old
+evaluation
