@@ -1,7 +1,7 @@
 # Making Mathematical Reasoning Adaptive
 
 <p align="center">
-  <a href="https://arxiv.org/abs/2510.04617"> 📃 Paper</a> | 
+  <a href="https://huggingface.co/papers/2510.04617"> 📃 Paper</a> | 
   <a href="https://github.com/NJUNLP/AdaR"> ⚙️ Code</a> | 
   <a href="https://huggingface.co/collections/DreamW1ngs/adar-68e648e59b2c9aec1208b5ef"> 🤖 Project</a> | 
   <a href="https://resume.laizj.fun/"> 📭 Contact</a> 
