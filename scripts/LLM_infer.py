@@ -85,7 +85,7 @@ async def main():
     else:
         input_path = os.path.join(cfg["process"]["tmp_folder"], sys.argv[1], f'{cfg["data"]["dataset_name"]}_{"|".join(str(item) for item in cfg["process"]["controllable_perturbation"]["alpha_list"])}_{cfg["process"]["controllable_perturbation"]["sample_times"]}_prompt.jsonl')
         output_path = os.path.join(cfg["process"]["tmp_folder"], sys.argv[1], f'{cfg["data"]["dataset_name"]}_{"|".join(str(item) for item in cfg["process"]["controllable_perturbation"]["alpha_list"])}_{cfg["process"]["controllable_perturbation"]["sample_times"]}_generated.jsonl')
-       
+
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     is_parallel = cfg["process"][sys.argv[1]]["is_parallel"]
     

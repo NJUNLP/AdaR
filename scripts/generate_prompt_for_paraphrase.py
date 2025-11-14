@@ -1,5 +1,4 @@
 import json
-from transformers import AutoTokenizer
 import yaml
 import os
 
@@ -12,9 +11,7 @@ set_seed(cfg["process"]["seed"])
 input_path = os.path.join(cfg["process"]["tmp_folder"], "sanity_check", f'{cfg["data"]["dataset_name"]}_{"|".join(str(item) for item in cfg["process"]["controllable_perturbation"]["alpha_list"])}_{cfg["process"]["controllable_perturbation"]["sample_times"]}_filtered.jsonl')
 output_dir = os.path.join(cfg["process"]["tmp_folder"], "query_paraphrase")
 output_path =  os.path.join(output_dir, f'{cfg["data"]["dataset_name"]}_{"|".join(str(item) for item in cfg["process"]["controllable_perturbation"]["alpha_list"])}_{cfg["process"]["controllable_perturbation"]["sample_times"]}_prompt.jsonl')
-tokenizer_path = cfg["process"]["sanity_check"]["generate_tokenizer_path"]
 
-tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 os.makedirs(output_dir, exist_ok=True)
 
 prompt = """You are an AI assistant to help me rephrase questions. Follow the given examples.
@@ -71,18 +68,6 @@ to plant more trees today, resulting in a total of 21 trees, how many trees did 
 Question: {}
 Rephrase the above question: """
 
-# with open(input_path) as f:
-#     data = json.load(f)
-#     for item in data:
-#         messages = [
-#             {"role": "system", "content": "You are a helpful assistant."},
-#             {"role": "user", "content": item["instruction"]}
-#         ]
-#         item["prompt"] = tokenizer.apply_chat_template(
-#                         messages,
-#                         tokenize=False,
-#                         add_generation_prompt=True)
-
 
 from utils import get_line_count
 line_count = get_line_count(input_path)
@@ -90,14 +75,16 @@ with open(input_path, "r") as in_f, open(output_path, "w") as out_f:
     for line in in_f:
         item = json.loads(line)
         messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt.format(item["instruction"])}
+            {"role": "user", "content": prompt.format(item["instruction"])},
         ]
-        item["prompt"] = tokenizer.apply_chat_template(
-                        messages,
-                        tokenize=False,
-                        add_generation_prompt=True,
-                        enable_thinking=False)
+        if cfg["process"]["template_and_code_generation"]["system"]:
+            messages.insert(0, {"role": "system", "content": cfg["process"]["template_and_code_generation"]["system"]})
+        # item["prompt"] = tokenizer.apply_chat_template(
+        #                 messages,
+        #                 tokenize=False,
+        #                 add_generation_prompt=True,
+        #                 enable_thinking=False)
+        item["messages"] = messages
         out_f.write(json.dumps(item, ensure_ascii=False) + "\n")
         
 print()

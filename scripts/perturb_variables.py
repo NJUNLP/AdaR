@@ -3,18 +3,13 @@ import json
 import os
 import re
 import random
-import ast
-import string
-import subprocess
-from logging import exception
 from tqdm.contrib.concurrent import process_map
 from functools import partial
-from transformers import AutoTokenizer
 from fractions import Fraction
-from contextlib import contextmanager
-import signal
-import builtins
-from wrapt_timeout_decorator import timeout
+import multiprocessing
+from queue import Empty
+import time
+import itertools
 import yaml
 
 with open('config.yaml', 'r') as file:
@@ -30,10 +25,9 @@ output_dir = os.path.join(cfg["process"]["tmp_folder"], "controllable_generation
 output_path =  os.path.join(output_dir, f'{cfg["data"]["dataset_name"]}_{"|".join(str(item) for item in max_flucts)}_{sample_times}.jsonl')
 
 os.makedirs(output_dir, exist_ok=True)
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 def mock_input(prompt=""):
     return "" 
-builtins.input = mock_input
 
 def extract_last_num(text) -> float:
     if isinstance(text, str):
@@ -65,20 +59,122 @@ def check_validity(value, old_value):
     except ValueError:
         return False
 
-@timeout(cfg["process"]["controllable_perturbation"]["timeout_seconds_per_sample"])
+class SafeExecutor:
+    def __init__(self, mock_input_func):
+        self.mock_input = mock_input_func
+        self._task_q = multiprocessing.Queue()
+        self._result_q = multiprocessing.Queue()
+        self._req_id_iter = itertools.count()
+        self._start_worker()
+
+    def _start_worker(self):
+        self._proc = multiprocessing.Process(
+            target=self._worker,
+            args=(self._task_q, self._result_q, self.mock_input),
+        )
+        self._proc.daemon = True
+        self._proc.start()
+
+    @staticmethod
+    def _worker(task_q, result_q, mock_input_func):
+        import builtins as _builtins
+
+        # 覆写 builtins
+
+        import builtins as _builtins
+        _builtins.input = mock_input_func
+        _builtins.quit = lambda *a, **kw: ""
+        _builtins.exit = lambda *a, **kw: ""
+
+        while True:
+            item = task_q.get()
+            if item is None:
+                break
+
+            req_id, code = item
+
+            local_env = {'__result__': ""}
+
+            def custom_print(*args, **kwargs):
+                sep = kwargs.get('sep', ' ')
+                end = kwargs.get('end', '\n')
+                output = sep.join(str(arg) for arg in args) + end
+                local_env['__result__'] += output
+
+            local_env['print'] = custom_print
+
+            try:
+                exec(code, local_env)
+                result_q.put((req_id, "ok", local_env["__result__"]))
+            except Exception as e:
+                result_q.put((req_id, "error", repr(e)))
+
+    def _restart_worker(self):
+        if self._proc.is_alive():
+            self._proc.terminate()
+            self._proc.join()
+        self._start_worker()
+
+    def run(self, code: str, timeout_seconds: float) -> str:
+        req_id = next(self._req_id_iter)
+        self._task_q.put((req_id, code))
+
+        start = time.time()
+        while True:
+            remaining = timeout_seconds - (time.time() - start)
+            if remaining <= 0:
+                self._restart_worker()
+                raise TimeoutError("python_run timed out")
+
+            try:
+                rid, status, payload = self._result_q.get(timeout=remaining)
+            except Empty:
+                self._restart_worker()
+                raise TimeoutError("python_run timed out (queue empty)")
+
+            if rid != req_id:
+                continue
+
+            if status == "error":
+                raise RuntimeError(f"Code execution error: {payload}")
+            return payload
+
+    def close(self):
+        try:
+            self._task_q.put(None)
+        except:
+            pass
+        if self._proc.is_alive():
+            self._proc.join()
+
+_executor = None
+
+def get_executor():
+    global _executor
+    if _executor is None:
+        _executor = SafeExecutor(mock_input)
+    return _executor
+
+
 def python_run(code):
-    local_env = {
-        '__result__': "",  # 存储 print 的内容
-    }
-    def custom_print(*args, **kwargs):
-    # 将所有参数转换为字符串并拼接
-        sep = kwargs.get('sep', ' ')
-        end = kwargs.get('end', '\n')
-        output = sep.join(str(arg) for arg in args) + end
-        local_env['__result__'] += output
-    local_env['print'] = custom_print
-    exec(code, local_env)
-    return local_env["__result__"]
+    executor = get_executor()
+    timeout_seconds = cfg["process"]["controllable_perturbation"]["timeout_seconds_per_sample"]
+    return executor.run(code, timeout_seconds)
+
+# @timeout(cfg["process"]["controllable_perturbation"]["timeout_seconds_per_sample"])
+# def python_run(code):
+#     local_env = {
+#         '__result__': "",  # 存储 print 的内容
+#     }
+#     def custom_print(*args, **kwargs):
+#     # 将所有参数转换为字符串并拼接
+#         sep = kwargs.get('sep', ' ')
+#         end = kwargs.get('end', '\n')
+#         output = sep.join(str(arg) for arg in args) + end
+#         local_env['__result__'] += output
+#     local_env['print'] = custom_print
+#     exec(code, local_env)
+#     return local_env["__result__"]
 
 def randomize_value(original_value, max_fluct=1.0, upper_bound=10**9):
     """
@@ -242,28 +338,46 @@ def randomize_code(max_fluct: float, original_code: str, original_query=None, or
                     pass
             except TimeoutError as e:
                 raise e
-            except:
+            except Exception as e:
                 pass
 
-@timeout(cfg["process"]["controllable_perturbation"]["timeout_seconds_total"])
+# @timeout(cfg["process"]["controllable_perturbation"]["timeout_seconds_total"])
+# def randomize_code_multiple_times(times, group_r, *args, **kwargs):
+#     for _ in range(times):
+#         r = randomize_code(*args, **kwargs)
+#         if 'new_ans' in r:
+#             # messages = [
+#             #     {"role": "system", "content": "Below is an instruction that describes a task. Write a response that appropriately completes the request. Output each step in a separate line, and explicitly state the final answer after the final step within \\boxed{}."},
+#             #     {"role": "user", "content": r["new_query"]} # type: ignore
+#             # ]
+
+#             # r["prompt"] = tokenizer.apply_chat_template(
+#             #     messages,
+#             #     tokenize=False,
+#             #     add_generation_prompt=True,
+#             #     enable_thinking=False)
+
+#             # 将r的内容均添加到item中
+#             r["max_fluct"] = kwargs["max_fluct"]
+#             group_r.append(r)
+
 def randomize_code_multiple_times(times, group_r, *args, **kwargs):
+    total_timeout = cfg["process"]["controllable_perturbation"]["timeout_seconds_total"]
+    start_total = time.time()
+
     for _ in range(times):
-        r = randomize_code(*args, **kwargs)
-        if 'new_ans' in r:
-            # messages = [
-            #     {"role": "system", "content": "Below is an instruction that describes a task. Write a response that appropriately completes the request. Output each step in a separate line, and explicitly state the final answer after the final step within \\boxed{}."},
-            #     {"role": "user", "content": r["new_query"]} # type: ignore
-            # ]
+        if time.time() - start_total > total_timeout:
+            break
 
-            # r["prompt"] = tokenizer.apply_chat_template(
-            #     messages,
-            #     tokenize=False,
-            #     add_generation_prompt=True,
-            #     enable_thinking=False)
+        try:
+            r = randomize_code(*args, **kwargs)
+        except TimeoutError:
+            continue
 
-            # 将r的内容均添加到item中
+        if r and 'new_ans' in r:
             r["max_fluct"] = kwargs["max_fluct"]
             group_r.append(r)
+
 
 def process_item(item, others):
     
@@ -291,7 +405,7 @@ with open(input_path, "r") as f:
         data.append(json.loads(line))
 
 process_func = partial(process_item, others=None)
-max_workers = 1
+max_workers = cfg["process"]["controllable_perturbation"]["max_workers"]
 if max_workers == -1:
     max_workers=os.cpu_count() // 2, 
 

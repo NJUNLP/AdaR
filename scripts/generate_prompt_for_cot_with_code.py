@@ -1,4 +1,3 @@
-from transformers import AutoTokenizer
 import json
 from tqdm import tqdm
 import os
@@ -13,9 +12,7 @@ set_seed(cfg["process"]["seed"])
 input_path = os.path.join(cfg["process"]["tmp_folder"], "controllable_generation", f'{cfg["data"]["dataset_name"]}_{"|".join(str(item) for item in cfg["process"]["controllable_perturbation"]["alpha_list"])}_{cfg["process"]["controllable_perturbation"]["sample_times"]}.jsonl')
 output_dir = os.path.join(cfg["process"]["tmp_folder"], "sanity_check")
 output_path =  os.path.join(output_dir, f'{cfg["data"]["dataset_name"]}_{"|".join(str(item) for item in cfg["process"]["controllable_perturbation"]["alpha_list"])}_{cfg["process"]["controllable_perturbation"]["sample_times"]}_prompt.jsonl')
-tokenizer_path = cfg["process"]["sanity_check"]["generate_tokenizer_path"]
 
-tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 os.makedirs(output_dir, exist_ok=True)
 
 
@@ -43,20 +40,21 @@ with open(input_path, "r") as in_f, open(output_path, "w") as out_f:
 
         item = json.loads(line)
         for inner_idx, inner_item in enumerate(item["perturbed"]):
-            
             messages = [
-                {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": prompt + instruction.format(inner_item["new_query"], inner_item["new_code"])}
             ]
+            if cfg["process"]["template_and_code_generation"]["system"]:
+                messages.insert(0, {"role": "system", "content": cfg["process"]["template_and_code_generation"]["system"]})
             
             out_f.write(json.dumps({
                 "id": item["id"],
                 "inner_id": inner_idx,
-                "prompt": tokenizer.apply_chat_template(
-                            messages,
-                            tokenize=False,
-                            add_generation_prompt=True,
-                            enable_thinking=False),
+                # "prompt": tokenizer.apply_chat_template(
+                #             messages,
+                #             tokenize=False,
+                #             add_generation_prompt=True,
+                #             enable_thinking=False),
+                "messages": messages,
                 "max_fluct": inner_item["max_fluct"],
                 "instruction": inner_item["new_query"],
                 "code": inner_item["new_code"],
@@ -71,6 +69,5 @@ print("="* 40)
 print("Prompts for EVS have been created!\n")
 print(f"Total: {line_count} instances")
 print(f"Output path: {output_path}")
-print(f'Deployed tokenizer: {os.path.basename(tokenizer_path)}')
 print("="* 40)
 print()

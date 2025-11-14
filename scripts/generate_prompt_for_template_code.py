@@ -1,7 +1,6 @@
 
 
 import json
-from transformers import AutoTokenizer
 import random
 import yaml
 import os
@@ -18,9 +17,7 @@ dataset_name=cfg["data"]["dataset_name"]
 input_path = cfg["data"]["source_path"]
 output_dir = os.path.join(cfg["process"]["tmp_folder"], "template_and_code_generation")
 output_path =  os.path.join(output_dir, f'{cfg["data"]["dataset_name"]}_prompt.jsonl')
-tokenizer_path = cfg["process"]["template_and_code_generation"]["generate_tokenizer_path"]
 
-tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 os.makedirs(output_dir, exist_ok=True)
 
 
@@ -98,17 +95,19 @@ with open(output_path, "w") as f:
     for idx, item in enumerate(data):
         
         messages = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": instruction + prompt.format(item["query"], item["chosen"])},
+            {"role": "user", "content": instruction + prompt.format(item["query"], item["chosen"])},
         ]
+        if cfg["process"]["template_and_code_generation"]["system"]:
+            messages.insert(0, {"role": "system", "content": cfg["process"]["template_and_code_generation"]["system"]})
         
         result = {
             "id": idx,
             "query": item["query"],
-            "prompt": tokenizer.apply_chat_template(
-                        messages,
-                        tokenize=False,
-                        add_generation_prompt=True),
+            # "prompt": tokenizer.apply_chat_template(
+            #             messages,
+            #             tokenize=False,
+            #             add_generation_prompt=True),
+            "messages": messages,
             "chosen": item["chosen"],
             "answer": item["answer"]
         }
@@ -120,6 +119,5 @@ print("="* 40)
 print("Prompts for template and code generation have been created!\n")
 print(f"Total: {len(data)} instances")
 print(f"Output path: {output_path}")
-print(f'Deployed tokenizer: {os.path.basename(tokenizer_path)}')
 print("="* 40)
 print()

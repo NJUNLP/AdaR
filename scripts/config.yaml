@@ -1,74 +1,79 @@
 data:
-  dataset_name: orca
+  dataset_name: tmp
   # seed data
-  source_path: 
-  system: "Please reason step by step, and put your final answer within \\boxed{}."
+  source_path: ../data/raw/dapo_math_15k_cot.json
+  # system: "Please reason step by step, and put your final answer within \\boxed{}."
 
 target_dir: ../data/result
 output_format: parquet # jsonl, json or parquet
-get_test_set: True
+get_test_set: False
 test_ratio: 0.02 # The proportion of the test set
 
 process:
   seed: 26
   tmp_folder: ../data/tmp
+
   template_and_code_generation:
     is_parallel: True
-    generate_tokenizer_path: 
+    system: ""
     sampling-params:
-      temperature: 0.7
+      temperature: 0
       top_p: 0.95
-      max_tokens: 4096
+      max_tokens: 16384
       n: 1
+      # extra_body="{"chat_template_kwargs": {"enable_thinking": False}},
     # For Local Serial
-    generate_model_path: -1 # copy the value of "generate_tokenizer_path"
+    generate_model_path: ""
     tensor_parallel_size: -1 # -1 means number of all available gpus
     gpu_memory_utilization: 0.95
     # For Remote Parallel
-    url: "http://10.114.109.93:8418/v1"
+    url: ""
     api_key: "EMPTY"
-    bsz: 100
+    bsz: 1024
+
   controllable_perturbation:
-    alpha_list: [1, 5] # Optional values of the perturbation magnitude
+    alpha_list: [5] # Optional values of the perturbation magnitude
     sample_times: 4 # The number of perturbations for each sample
     timeout_seconds_total: 180 # If a all perturbatio for more than the specified time, it is regarded as an error
-    timeout_seconds_per_sample: 180 # If a one perturbation runs for more than the specified time, it is regarded as an error
+    timeout_seconds_per_sample: 2 # If a one perturbation runs for more than the specified time, it is regarded as an error
     retry_times_inner: 10 # retry times for valid perturbation
     retry_times_outer: 50 # retry times for sanity check
     max_workers: -1 # -1 means the number of physical cores of the CPU
     chunk_size: 5
+
   sanity_check:
     is_parallel: True
-    generate_tokenizer_path: 
+    system: ""
     sampling-params:
-      temperature: 0.7
+      temperature: 1.0
       top_p: 0.95
-      max_tokens: 4096
+      max_tokens: 32768
       n: 5
     # For Local Serial
-    generate_model_path: -1 # copy the value of "generate_tokenizer_path"
+    generate_model_path: ""
     tensor_parallel_size: -1 # -1 means number of all available gpus
     gpu_memory_utilization: 0.95
     # For Remote Parallel
     url: ""
     api_key: "EMPTY"
-    bsz: 100
+    bsz: 1024
+
   query_paraphrase:
     is_parallel: True
-    generate_tokenizer_path: 
+    system: ""
     sampling-params:
-      temperature: 0.7
+      temperature: 1.0
       top_p: 0.95
-      max_tokens: 4096
+      max_tokens: 32768
       n: 5
     # For Local Serial
-    generate_model_path: -1 # copy the value of "generate_tokenizer_path"
+    generate_model_path: ""
     tensor_parallel_size: -1 # -1 means number of all available gpus
     gpu_memory_utilization: 0.95
     # For Remote Parallel
     url: ""
     api_key: "EMPTY"
-    bsz: 100
+    bsz: 1024
 
 
 
