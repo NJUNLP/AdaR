@@ -2,7 +2,7 @@ data:
   dataset_name: tmp
   # seed data
   source_path: ../data/raw/dapo_math_15k_cot.json
-  # system: "Please reason step by step, and put your final answer within \\boxed{}."
+  system: "Please reason step by step, and put your final answer within \\boxed{}."
 
 target_dir: ../data/result
 output_format: parquet # jsonl, json or parquet
